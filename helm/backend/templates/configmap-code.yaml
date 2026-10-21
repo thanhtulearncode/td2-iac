@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-code
+data:
+  app.py: |
+    import os, socket, json
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    import pg8000.native
+
+    DB = dict(
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"],
+        host=os.environ["DB_HOST"],
+        database=os.environ["DB_NAME"],
+    )
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path.startswith("/api/items"):
+                try:
+                    conn = pg8000.native.Connection(**DB)
+                    rows = conn.run("SELECT id, name FROM items ORDER BY id")
+                    conn.close()
+                    body = json.dumps({
+                        "pod": socket.gethostname(),
+                        "items": [{"id": r[0], "name": r[1]} for r in rows],
+                    }).encode()
+                    self._send(200, body)
+                except Exception as e:
+                    self._send(500, str(e).encode())
+            elif self.path.startswith("/api/visits"):
+                try:
+                    conn = pg8000.native.Connection(**DB)
+                    conn.run("INSERT INTO visits (pod_name) VALUES (:p)",
+                             p=socket.gethostname())
+                    rows = conn.run("SELECT COUNT(*) FROM visits")
+                    total = rows[0][0]
+                    conn.close()
+                    body = json.dumps({
+                        "pod": socket.gethostname(),
+                        "total_visits": total,
+                    }).encode()
+                    self._send(200, body)
+                except Exception as e:
+                    self._send(500, str(e).encode())
+            else:
+                self._send(404, b"")
+
+        def _send(self, code, body):
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    if __name__ == "__main__":
+        HTTPServer(("0.0.0.0", 5000), Handler).serve_forever()

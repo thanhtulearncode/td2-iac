@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      initContainers:
+        - name: install-deps
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["sh", "-c"]
+          args:
+            - pip install --quiet --no-cache-dir --target /pip pg8000
+          volumeMounts:
+            - name: pip
+              mountPath: /pip
+      containers:
+        - name: backend
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["python", "/app/app.py"]
+          ports:
+            - containerPort: 5000
+          env:
+            - name: PYTHONPATH
+              value: /pip
+            - name: DB_HOST
+              value: "{{ .Values.db.host }}"
+            - name: DB_PORT
+              value: "{{ .Values.db.port }}"
+            - name: DB_USER
+              value: "{{ .Values.db.user }}"
+            - name: DB_PASSWORD
+              value: "{{ .Values.db.password }}"
+            - name: DB_NAME
+              value: "{{ .Values.db.name }}"
+          volumeMounts:
+            - name: code
+              mountPath: /app
+            - name: pip
+              mountPath: /pip
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+      volumes:
+        - name: code
+          configMap:
+            name: backend-code
+        - name: pip
+          emptyDir: {}

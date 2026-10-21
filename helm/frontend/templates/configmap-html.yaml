@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-html
+data:
+  index.html: |
+    <!doctype html>
+    <html lang="fr">
+    <head>
+      <meta charset="utf-8">
+      <title>NovaShop - TD2</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+               margin: 0; padding: 2em; background: #f0f4f8; color: #1f2937; }
+        .container { max-width: 900px; margin: 0 auto; }
+        header { display: flex; align-items: center; justify-content: space-between;
+                 margin-bottom: 2em; }
+        h1 { color: #1950a0; margin: 0; font-size: 2em; }
+        .tagline { color: #6b7280; font-size: 0.9em; margin-top: 0.2em; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                 gap: 1em; margin-bottom: 2em; }
+        .card { background: #fff; padding: 1em 1.2em; border-radius: 8px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid #1950a0; }
+        .card.backend { border-left-color: #e6781e; }
+        .card.db { border-left-color: #1e8c46; }
+        .card.visits { border-left-color: #6e3c96; }
+        .card-label { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.05em;
+                      color: #6b7280; margin-bottom: 0.3em; }
+        .card-value { font-family: ui-monospace, "SF Mono", Menlo, monospace;
+                      font-size: 0.95em; color: #111827; word-break: break-all; }
+        table { width: 100%; border-collapse: collapse; background: #fff;
+                border-radius: 8px; overflow: hidden;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        thead { background: #1950a0; color: #fff; }
+        th { text-align: left; padding: 0.8em 1em; font-weight: 600; }
+        td { padding: 0.7em 1em; border-bottom: 1px solid #e5e7eb; }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: #f9fafb; }
+        .status { display: inline-block; padding: 0.2em 0.6em; border-radius: 999px;
+                  background: #d1fae5; color: #065f46; font-size: 0.8em; font-weight: 600; }
+        .refresh-note { text-align: center; color: #9ca3af; font-size: 0.85em;
+                        margin-top: 2em; }
+        .error { background: #fee2e2; color: #991b1b; padding: 1em; border-radius: 8px;
+                 border-left: 4px solid #dc2626; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <header>
+          <div>
+            <h1>NovaShop</h1>
+            <div class="tagline">Application 3-tiers &mdash; TD2 IaC / DevSecOps</div>
+          </div>
+          <span class="status" id="status">&#9679; En ligne</span>
+        </header>
+
+        <div class="cards">
+          <div class="card">
+            <div class="card-label">Pod frontend</div>
+            <div class="card-value" id="frontend-pod">&mdash;</div>
+          </div>
+          <div class="card backend">
+            <div class="card-label">Pod backend</div>
+            <div class="card-value" id="backend-pod">&mdash;</div>
+          </div>
+          <div class="card db">
+            <div class="card-label">Base de donnees</div>
+            <div class="card-value">PostgreSQL 16</div>
+          </div>
+          <div class="card visits">
+            <div class="card-label">Visites totales</div>
+            <div class="card-value" id="visits">-</div>
+          </div>
+        </div>
+
+        <table>
+          <thead><tr><th>ID</th><th>Nom de l'article</th></tr></thead>
+          <tbody id="items-body">
+            <tr><td colspan="2" style="text-align:center;color:#9ca3af;">Chargement...</td></tr>
+          </tbody>
+        </table>
+
+        <div class="refresh-note">Rafra&icirc;chissement automatique toutes les 5 secondes</div>
+      </div>
+
+      <script>
+        async function refresh() {
+          try {
+            const headResp = await fetch('/?cachebust=' + Date.now(), { method: 'HEAD' });
+            const fpod = headResp.headers.get('X-Pod-Name') || '?';
+            document.getElementById('frontend-pod').textContent = fpod;
+
+            const apiResp = await fetch('/api/items?cachebust=' + Date.now());
+            const data = await apiResp.json();
+            document.getElementById('backend-pod').textContent = data.pod || '?';
+
+            const tbody = document.getElementById('items-body');
+            tbody.innerHTML = '';
+            if (!data.items || data.items.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#9ca3af;">Aucun article</td></tr>';
+            } else {
+              for (const it of data.items) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td>' + it.id + '</td><td>' + it.name + '</td>';
+                tbody.appendChild(tr);
+              }
+            }
+            const visitResp = await fetch('/api/visits?cachebust=' + Date.now());
+            const visitData = await visitResp.json();
+            document.getElementById('visits').textContent = visitData.total_visits;
+            document.getElementById('status').innerHTML = '&#9679; En ligne';
+            document.getElementById('status').style.background = '#d1fae5';
+            document.getElementById('status').style.color = '#065f46';
+          } catch (e) {
+            document.getElementById('status').innerHTML = '&#9679; Hors ligne';
+            document.getElementById('status').style.background = '#fee2e2';
+            document.getElementById('status').style.color = '#991b1b';
+            document.getElementById('items-body').innerHTML =
+              '<tr><td colspan="2" class="error">Erreur : ' + e + '</td></tr>';
+          }
+        }
+
+        refresh();
+        setInterval(refresh, 5000);
+      </script>
+    </body>
+    </html>

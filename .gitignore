@@ -1,0 +1,18 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+*.tfvars
+!example.tfvars
+
+# Ansible
+*.retry
+inventory.ini
+
+# Kubernetes
+/ansible/kubeconfig
+*.kubeconfig
+
+*.bak
+*.old

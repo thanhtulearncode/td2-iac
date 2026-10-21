@@ -1,0 +1,18 @@
+---
+- name: Lire le kubeconfig depuis la VM
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/k3s.yaml
+  register: kubeconfig_raw
+  become: true
+
+- name: Reecrire l'adresse du serveur API
+  ansible.builtin.set_fact:
+    kubeconfig_fixed: "{{ kubeconfig_raw.content | b64decode | replace('127.0.0.1', ansible_host) }}"
+
+- name: Ecrire le kubeconfig sur DevStack
+  ansible.builtin.copy:
+    dest: "{{ lookup('env', 'HOME') }}/td2/ansible/kubeconfig"
+    content: "{{ kubeconfig_fixed }}"
+    mode: '0600'
+  delegate_to: localhost
+  become: false

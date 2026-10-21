@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-nginx
+data:
+  default.conf: |
+    server {
+      listen 80;
+      server_name _;
+
+      add_header X-Pod-Name $hostname always;
+
+      location / {
+        root /usr/share/nginx/html;
+        index index.html;
+      }
+
+      location /api/ {
+        proxy_pass http://backend.td2.svc.cluster.local:5000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+      }
+    }

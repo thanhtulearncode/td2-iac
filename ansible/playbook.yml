@@ -1,0 +1,8 @@
+---
+- name: Configurer la VM K3s
+  hosts: k3s
+  gather_facts: true
+  roles:
+    - k3s-prereq
+    - k3s
+    - kubeconfig

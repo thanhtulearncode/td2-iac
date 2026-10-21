@@ -1,0 +1,45 @@
+---
+- name: Desactiver systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: stopped
+    enabled: false
+  become: true
+  failed_when: false
+
+- name: Ecrire un /etc/resolv.conf statique
+  ansible.builtin.copy:
+    dest: /etc/resolv.conf
+    content: |
+      nameserver 1.1.1.1
+      nameserver 8.8.8.8
+    mode: '0644'
+  become: true
+
+- name: Ajouter l'entree locale dans /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "127.0.1.1 {{ inventory_hostname }}"
+    state: present
+  become: true
+
+- name: Mettre a jour le cache apt
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Installer les paquets prerequis
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - netcat-openbsd
+    state: present
+  become: true
+
+- name: Verifier que get.k3s.io est resolvable
+  ansible.builtin.command: getent ahostsv4 get.k3s.io
+  register: dns_check
+  changed_when: false
+  failed_when: dns_check.rc != 0

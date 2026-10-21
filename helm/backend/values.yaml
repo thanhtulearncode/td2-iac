@@ -1,0 +1,23 @@
+replicaCount: 2
+
+image:
+  repository: python
+  tag: "3.12-slim"
+
+service:
+  port: 5000
+
+db:
+  host: postgres.td2.svc.cluster.local
+  port: 5432
+  user: app
+  password: changeme
+  name: appdb
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
